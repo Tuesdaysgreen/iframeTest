@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+<head>
+    <title>IFrame Test</title>
+</head>
+
+<body>
+    <script>
+    let parentHostname;
+    let parentBaseUrl;
+    let subscriptionId;
+    let resourceGroup;
+
+    function receiveMessage(event) {
+        // Messages always contain the signature pcIframe.
+        if (event.data["signature"] !== "pcIframe") {
+            return;
+        }
+
+		var data = event.data["data"];
+        console.log("[IFRAME] Received: " + data.method);
+
+        if(data.method === "send-initialization"){
+
+            subscriptionId = data.subscriptionId;
+            resourceGroup = data.resourceGroup;
+
+            // Need to focus on something otherwise the Portal selects the iframe control, resulting in a blue outline
+            document.getElementById("siteNameTextBox").focus();
+        }
+        else if(data.method === "arm-response"){
+            sendTemplateResponse(data);
+        }
+        else if(data.method === "template-request"){
+            verifySiteNameAvailable();
+        }
+    }
+
+    if (window.parent !== window) {
+
+        // Quick way to parse out hostname
+        let location = document.createElement("a");
+        location.href = document.referrer;
+        parentHostname = location.hostname;
+        parentBaseUrl = "https://" + parentHostname;
+
+        // Make sure we're only talking to the Ibiza portal
+        if(parentHostname.toLowerCase().endsWith("portal.azure.com")){
+            window.addEventListener("message", receiveMessage, false);
+            sendMessage("ready");            
+        }
+	}
+
+    function verifySiteNameAvailable(){
+        let siteName = document.getElementById('siteNameTextBox').value;
+        let nameAvailableUri = `/subscriptions/${subscriptionId}/providers/microsoft.web/ishostnameavailable/${siteName}?api-version=2016-03-01`;
+        let data = {
+            method : "arm-request",
+            verb: "GET",
+            uri : nameAvailableUri
+        };
+
+        sendMessage(data);
+    }
+
+    function sendTemplateResponse(data){
+
+        let response = data.content;
+        let templateResponse;
+        let siteNameErrorElem = document.getElementById("siteNameError");
+
+        if(response.properties === true){
+            siteNameErrorElem.innerHTML = "";
+            templateResponse = {
+                method : "template-response",
+                resourceGroupLocation : "West US",
+                resourceProviders : ["Microsoft.Web"],  // Ensures ARM registers providers for given subscription if it hasn't been done already, otherwise could fail
+                parameters : getParameters(response.name),
+                template : getTemplate()
+            }
+        }
+        else{
+            siteNameErrorElem.innerHTML = "Name is not available";
+            templateResponse = {
+                method : "template-response",
+                error : "Name is not available"
+            }
+        }
+
+        sendMessage(templateResponse);
+    }
+
+    function getTemplate(){
+        return {
+            "parameters": {
+                "name": {
+                    "type": "string"
+                },
+                "hostingPlanName": {
+                    "type": "string"
+                },
+                "hostingEnvironment": {
+                    "type": "string"
+                },
+                "location": {
+                    "type": "string"
+                },
+                "sku": {
+                    "type": "string"
+                },
+                "skuCode": {
+                    "type": "string"
+                },
+                "workerSize": {
+                    "type": "string"
+                },
+                "serverFarmResourceGroup": {
+                    "type": "string"
+                },
+                "subscriptionId": {
+                    "type": "string"
+                }
+            },
+            "resources": [{
+                "apiVersion": "2016-03-01",
+                "name": "[parameters('name')]",
+                "type": "Microsoft.Web/sites",
+                "properties": {
+                    "name": "[parameters('name')]",
+                    "serverFarmId": "[concat('/subscriptions/', parameters('subscriptionId'),'/resourcegroups/', parameters('serverFarmResourceGroup'), '/providers/Microsoft.Web/serverfarms/', parameters('hostingPlanName'))]",
+                    "hostingEnvironment": "[parameters('hostingEnvironment')]"
+                },
+                "location": "[parameters('location')]",
+                "tags": {
+                    "[concat('hidden-related:', '/subscriptions/', parameters('subscriptionId'),'/resourcegroups/', parameters('serverFarmResourceGroup'), '/providers/Microsoft.Web/serverfarms/', parameters('hostingPlanName'))]": "empty"
+                },
+                "dependsOn": [
+                    "[concat('Microsoft.Web/serverfarms/', parameters('hostingPlanName'))]"
+                ]
+            },
+            {
+                "apiVersion": "2016-03-01",
+                "name": "[parameters('hostingPlanName')]",
+                "type": "Microsoft.Web/serverfarms",
+                "location": "[parameters('location')]",
+                "properties": {
+                    "name": "[parameters('hostingPlanName')]",
+                    "workerSizeId": "[parameters('workerSize')]",
+                    "reserved": false,
+                    "hostingEnvironment": "[parameters('hostingEnvironment')]"
+                },
+                "sku": {
+                    "Tier": "[parameters('sku')]",
+                    "Name": "[parameters('skuCode')]"
+                }
+            }],
+            "$schema": "http://schema.management.azure.com/schemas/2014-04-01-preview/deploymentTemplate.json#",
+            "contentVersion": "1.0.0.0"
+        }
+    }
+
+    function getParameters(siteName){
+        return {
+            "name": siteName,
+            "hostingPlanName": "myPlan",
+            "hostingEnvironment": "",
+            "location": "West US",
+            "sku": "Free",
+            "workerSize": "0",
+            "serverFarmResourceGroup": resourceGroup,
+            "skuCode": "F1",
+            "subscriptionId": subscriptionId
+        };
+    }
+
+    function sendMessage(data){
+        // Include a signature iframe and data in all posts.        
+        window.parent.postMessage({
+            signature: "pcIframe",
+            data: data
+        },
+        parentBaseUrl);
+    }
+
+    // Force chrome to name my JS consistently as a file
+    //# sourceURL=index.js
+    </script>
+    <label for="siteNameTextBox" style="display:block">New App Name</label>
+    <input id="siteNameTextBox" type="text" style="widt: calc(100% - 50px)" />
+
+    <p id="siteNameError" style="color: red"></p>
+
+</body>
+
+</html>
