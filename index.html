@@ -64,6 +64,15 @@
         sendMessage(data);
     }
 
+    function setDirtyState(){
+        let data = {
+            method : "set-dirtystate",
+            isDirty : true
+        };
+
+        sendMessage(data);        
+    }
+
     function sendTemplateResponse(data){
 
         let response = data.content;
@@ -187,7 +196,7 @@
     //# sourceURL=index.js
     </script>
     <label for="siteNameTextBox" style="display:block">New App Name</label>
-    <input id="siteNameTextBox" type="text" style="widt: calc(100% - 50px)" />
+    <input id="siteNameTextBox" type="text" style="widt: calc(100% - 50px)" onkeypress="setDirtyState()" />
 
     <p id="siteNameError" style="color: red"></p>
 
