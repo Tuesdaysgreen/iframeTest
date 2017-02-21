@@ -86,7 +86,31 @@
                 resourceGroupLocation : "West US",
                 resourceProviders : ["Microsoft.Web"],  // Ensures ARM registers providers for given subscription if it hasn't been done already, otherwise could fail
                 parameters : getParameters(response.name),
-                template : getTemplate()
+                template : getTemplate(),
+                
+                // Describes which resources to show in the legal blade for pricing information.
+                // The following below is just an example of possible values, not necessarily what is being
+                // provisioned by the template returned from getTemplate()
+                resourceInfos : [{
+                    sku : "s1",
+                    quantity : 1,
+                    type : "Microsoft.Web/ServerFarms"
+                },
+                {
+                    sku : "s1",
+                    quantity : 2,
+                    type : "Microsoft.Sql/Servers/Databases"
+                },
+                {
+                    sku : "standard",
+                    quantity : 3,
+                    type : "Microsoft.Search/searchServices"
+                },
+                {
+                    sku : "c0_basic",
+                    quantity : 4,
+                    type : "Microsoft.Cache/Redis"
+                }]
             }
         }
         else{
