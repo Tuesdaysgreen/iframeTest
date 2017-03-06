@@ -86,7 +86,8 @@
                 resourceGroupLocation : "West US",
                 resourceProviders : ["Microsoft.Web"],  // Ensures ARM registers providers for given subscription if it hasn't been done already, otherwise could fail
                 parameters : getParameters(response.name),
-                template : getTemplate(),
+                // template : getTemplate(),            // You can either send a JSON object of the template, or pass in a link to an existing template
+                templateLinkUri : "https://raw.githubusercontent.com/Tuesdaysgreen/iframeTest/master/template.json",
                 
                 // Describes which resources to show in the legal blade for pricing information.
                 // The following below is just an example of possible values, not necessarily what is being
