@@ -18,7 +18,7 @@
             return;
         }
 
-		var data = event.data["data"];
+		let data = event.data["data"];
         console.log("[IFRAME] Received: " + data.method);
 
         if(data.method === "send-initialization"){
@@ -26,14 +26,17 @@
             subscriptionId = data.subscriptionId;
             resourceGroup = data.resourceGroup;
 
+            let theme = data.themeInfo.name;
+            document.getElementById("theme").innerText = theme;
+
             // Need to focus on something otherwise the Portal selects the iframe control, resulting in a blue outline
             document.getElementById("siteNameTextBox").focus();
         }
         else if(data.method === "arm-response"){
-            sendTemplateResponse(data);
+            verifySiteNameAvailableResponse(data);
         }
         else if(data.method === "template-request"){
-            verifySiteNameAvailable();
+            sendTemplateResponse();            
         }
     }
 
@@ -64,6 +67,27 @@
         sendMessage(data);
     }
 
+    function verifySiteNameAvailableResponse(response){
+        let siteNameErrorElem = document.getElementById("siteNameError");
+        let disabled = true;
+
+        if(response.content.properties === true){
+            siteNameErrorElem.innerHTML = "";
+            disabled = false;
+        }
+        else{
+            siteNameErrorElem.innerHTML = "Name is not available";
+        }
+
+        let data = {
+            method : "set-button-state",
+            disabled : disabled
+        };
+
+        sendMessage(data);
+
+    }
+
     function setDirtyState(){
         let data = {
             method : "set-dirtystate",
@@ -73,56 +97,51 @@
         sendMessage(data);        
     }
 
-    function sendTemplateResponse(data){
+    function sendTemplateResponse(){
 
-        let response = data.content;
         let templateResponse;
-        let siteNameErrorElem = document.getElementById("siteNameError");
 
-        if(response.properties === true){
-            siteNameErrorElem.innerHTML = "";
-            templateResponse = {
-                method : "template-response",
-                resourceGroupLocation : "West US",
-                resourceProviders : ["Microsoft.Web"],  // Ensures ARM registers providers for given subscription if it hasn't been done already, otherwise could fail
-                parameters : getParameters(response.name),
-                // template : getTemplate(),            // You can either send a JSON object of the template, or pass in a link to an existing template
-                templateLinkUri : "https://raw.githubusercontent.com/Tuesdaysgreen/iframeTest/master/template.json",
-                
-                // Describes which resources to show in the legal blade for pricing information.
-                // The following below is just an example of possible values, not necessarily what is being
-                // provisioned by the template returned from getTemplate()
-                resourceInfos : [{
-                    sku : "s1",
-                    quantity : 1,
-                    type : "Microsoft.Web/ServerFarms"
-                },
-                {
-                    sku : "s1",
-                    quantity : 2,
-                    type : "Microsoft.Sql/Servers/Databases"
-                },
-                {
-                    sku : "standard",
-                    quantity : 3,
-                    type : "Microsoft.Search/searchServices"
-                },
-                {
-                    sku : "c0_basic",
-                    quantity : 4,
-                    type : "Microsoft.Cache/Redis"
-                }]
-            }
-        }
-        else{
-            siteNameErrorElem.innerHTML = "Name is not available";
-            templateResponse = {
-                method : "template-response",
-                error : "Name is not available"
-            }
+        templateResponse = {
+            method : "template-response",
+            resourceGroupLocation : "West US",
+            resourceProviders : ["Microsoft.Web"],  // Ensures ARM registers providers for given subscription if it hasn't been done already, otherwise could fail
+            parameters : getParameters(document.getElementById('siteNameTextBox').value),
+            // template : getTemplate(),            // You can either send a JSON object of the template, or pass in a link to an existing template
+            templateLinkUri : "https://raw.githubusercontent.com/Tuesdaysgreen/iframeTest/master/template.json",
+            
+            // Describes which resources to show in the legal blade for pricing information.
+            // The following below is just an example of possible values, not necessarily what is being
+            // provisioned by the template returned from getTemplate()
+            resourceInfos : [{
+                sku : "s1",
+                quantity : 1,
+                type : "Microsoft.Web/ServerFarms"
+            },
+            {
+                sku : "s1",
+                quantity : 2,
+                type : "Microsoft.Sql/Servers/Databases"
+            },
+            {
+                sku : "standard",
+                quantity : 3,
+                type : "Microsoft.Search/searchServices"
+            },
+            {
+                sku : "c0_basic",
+                quantity : 4,
+                type : "Microsoft.Cache/Redis"
+            }]
         }
 
-        sendMessage(templateResponse);
+        // You can also send an error response to the template request like so, which will prevent the user
+        // from closing the blade on "OK" click.
+        //     templateResponse = {
+        //         method : "template-response",
+        //         error : "Name is not available"
+        //     }
+
+        sendMessage(templateResponse);        
     }
 
     function getTemplate(){
@@ -220,9 +239,11 @@
     // Force chrome to name my JS consistently as a file
     //# sourceURL=index.js
     </script>
-    <label for="siteNameTextBox" style="display:block">New App Name</label>
-    <input id="siteNameTextBox" type="text" style="widt: calc(100% - 50px)" onkeypress="setDirtyState()" />
+    <div style="margin-bottom: 20px;">Theme: <span id="theme"></span></div>
 
+    <label for="siteNameTextBox" style="display:block">New App Name</label>
+    <input id="siteNameTextBox" type="text" onkeypress="setDirtyState()" />
+    <button id="validateButton" onclick="verifySiteNameAvailable()">Validate</button>
     <p id="siteNameError" style="color: red"></p>
 
 </body>
