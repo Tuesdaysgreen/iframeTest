@@ -58,6 +58,9 @@
     function verifySiteNameAvailable(){
         let siteName = document.getElementById('siteNameTextBox').value;
         let nameAvailableUri = `/subscriptions/${subscriptionId}/providers/microsoft.web/ishostnameavailable/${siteName}?api-version=2016-03-01`;
+
+        // For POST messages, you can add an additional "content" JSON object property
+
         let data = {
             method : "arm-request",
             verb: "GET",
