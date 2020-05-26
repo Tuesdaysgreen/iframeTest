@@ -7,18 +7,21 @@
 
 <body>
     <script>
+    const FrameSignature = 'FxFrameControl';
+    const acceptedOriginsSuffix = ['portal.azure.com', 'ms.portal.azure.com'];
+
     let parentHostname;
     let parentBaseUrl;
     let subscriptionId;
     let resourceGroup;
 
     function receiveMessage(event) {
-        // Messages always contain the signature pcIframe.
-        if (event.data["signature"] !== "pcIframe") {
+        // Validate host URL
+        if(!acceptedOriginsSuffix.find(a => event.origin.toLowerCase().endsWith(a.toLowerCase()))){
             return;
         }
 
-		let data = event.data["data"];
+        let data = event.data;
         console.log("[IFRAME] Received: " + data.method);
 
         if(data.method === "send-initialization"){
@@ -51,7 +54,11 @@
         // Make sure we're only talking to the Ibiza portal
         if(parentHostname.toLowerCase().endsWith("portal.azure.com")){
             window.addEventListener("message", receiveMessage, false);
-            sendMessage("ready");            
+            sendReadyMessage();
+            sendMessage({
+                method: 'set-button-state',
+                disabled: false
+            })          
         }
 	}
 
@@ -233,8 +240,16 @@
     function sendMessage(data){
         // Include a signature iframe and data in all posts.        
         window.parent.postMessage({
-            signature: "pcIframe",
+            signature: FrameSignature,
             data: data
+        },
+        parentBaseUrl);
+    }
+
+    function sendReadyMessage(){
+        window.parent.postMessage({
+            signature: FrameSignature,
+            kind: 'ready'
         },
         parentBaseUrl);
     }
